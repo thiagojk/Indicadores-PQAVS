@@ -26,6 +26,8 @@ Indicadores$IND_14 <- Indicadores_Brutos$IND_14 %>%
   ) %>%
   drop_na(NOME_MUN)
 
+
+
 # Indicador 12
 Indicadores$IND_12 <- Indicadores_Brutos$IND_12 %>%
   mutate(
