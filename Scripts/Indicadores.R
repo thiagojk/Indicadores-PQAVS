@@ -7,7 +7,7 @@ library(tidyr)
 Indicadores_Brutos <- list()
 
 Indicadores_Brutos$IND_14 <- read_excel("Dados/IND_14_PQAVS_2025 jan-dez Final Extracao 12-06-2026.xlsx")
-Indicadores_Brutos$IND_12 <- read_excel("Dados/IND_12_PQA-VS 2025_Avaliação_Final_150626.xlsx")
+Indicadores_Brutos$IND_12 <- read_excel("Dados/IND_12_PQA-VS 2025_Avaliação_Final.xlsx")
 
 # ── 2. Dados transformados ────────────────────────────────────────────────────
 Indicadores <- list()
@@ -27,18 +27,43 @@ Indicadores$IND_14 <- Indicadores_Brutos$IND_14 %>%
   drop_na(NOME_MUN)
 
 
-
 # Indicador 12
 Indicadores$IND_12 <- Indicadores_Brutos$IND_12 %>%
   mutate(
-    across(c(RES_2024, NUM_2025, DEN_2025, RES_2025), ~replace_na(as.numeric(.), 0)),
+    # Trata os NAs, garante tipo numérico e arredonda para 2 casas decimais
+    across(
+      c(RES_2024, NUM_2025, DEN_2025, RES_2025), 
+      ~ round(replace_na(as.numeric(.), 0), 2)
+    ),
+    
+    # Diferença sem arredondamento direto (usará os valores que já foram arredondados acima)
     DIFF = RES_2025 - RES_2024,
+    
     METAS = case_when(
-      RES_2025 == 0 & RES_2024 == 0 ~ "ALCANÇOU A META",
-      RES_2025 == RES_2024          ~ "NÃO ALCANÇOU A META",
-      DIFF > 0                      ~ "NÃO ALCANÇOU A META",
-      DIFF >= -1 & DIFF < 0         ~ "NÃO ALCANÇOU A META",
-      TRUE                          ~ "ALCANÇOU A META"
+      DEN_2025 == 0                               ~ "ALCANÇOU A META",
+      DIFF > 0                                    ~ "NÃO ALCANÇOU A META",
+      DIFF == 0 & RES_2025 > 0                    ~ "NÃO ALCANÇOU A META",
+      TRUE                                        ~ "ALCANÇOU A META"
     )
   ) %>%
-  drop_na(NOME_MUN)
+  drop_na(NOME_MUN) %>%
+  mutate(
+    DIVERGENCIA = if_else(
+      (METAS == "ALCANÇOU A META" & `ALCANCOU A META?` == "Não") |
+        (METAS == "NÃO ALCANÇOU A META" & `ALCANCOU A META?` == "Sim"),
+      "Sim",
+      "Não"
+    )
+  )
+
+# Para conferir o resultado das divergências após o arredondamento de 2 casas:
+table(Indicadores$IND_12$DIVERGENCIA)
+
+View(Indicadores$IND_12)
+divergencias <- Indicadores$IND_12 %>%
+  filter(
+    (METAS == "ALCANÇOU A META" & `ALCANCOU A META?` == "Não") |
+      (METAS == "NÃO ALCANÇOU A META" & `ALCANCOU A META?` == "Sim")
+  )
+
+nrow(divergencias)
