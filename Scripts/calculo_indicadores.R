@@ -40,7 +40,6 @@ converter_numero <- function(x) {
   as.numeric(x_limpo)
 }
 
-
 calcular_indicador <- function(
     indicador,
     meta,
@@ -79,7 +78,8 @@ calcular_indicador <- function(
     indicador <- indicador %>%
       mutate(
         RES = converter_numero(.data[[col_res]]),
-        RES = if (multiplicar_res) RES * 100 else RES
+        RES = if (multiplicar_res) RES * 100 else RES,
+        RES = round(RES, 5)
       )
     
     
@@ -101,7 +101,8 @@ calcular_indicador <- function(
         ),
         
         RES = .data[[col_num]] / .data[[col_den]],
-        RES = if (multiplicar_res) RES * 100 else RES
+        RES = if (multiplicar_res) RES * 100 else RES,
+        RES = round(RES, 1)
       )
     
     
@@ -127,6 +128,110 @@ calcular_indicador <- function(
     )
 }
 
+
+calcular_indicador_11_12 <- function(
+    indicador,
+    coluna_mun,
+    multiplicar_res = FALSE
+) {
+  
+  if (!coluna_mun %in% names(indicador)) {
+    stop(
+      sprintf(
+        "A coluna de município '%s' não foi encontrada nos dados.",
+        coluna_mun
+      )
+    )
+  }
+  
+  colunas_necessarias <- c(
+    "RES_2024",
+    "RES_2025"
+  )
+  
+  colunas_ausentes <- setdiff(
+    colunas_necessarias,
+    names(indicador)
+  )
+  
+  if (length(colunas_ausentes) > 0) {
+    stop(
+      paste(
+        "Colunas não encontradas:",
+        paste(
+          colunas_ausentes,
+          collapse = ", "
+        )
+      )
+    )
+  }
+  
+  indicador %>%
+    mutate(
+      
+      # Converte para numérico
+      RES_2024 = converter_numero(RES_2024),
+      RES_2025 = converter_numero(RES_2025),
+      
+      
+      # Multiplica por 100 ANTES da classificação
+      RES_2024 = if (
+        multiplicar_res
+      ) RES_2024 * 100 else RES_2024,
+      
+      RES_2025 = if (
+        multiplicar_res
+      ) RES_2025 * 100 else RES_2025,
+      
+      
+      # Diferença entre 2025 e 2024
+      RES = RES_2025 - RES_2024,
+      
+      RES = round(
+        RES,
+        1
+      ),
+      
+      
+      # Classificação
+      METAS = case_when(
+        
+        # Dados ausentes
+        is.na(RES_2025) |
+          is.na(RES_2024) |
+          is.na(RES) ~ "NÃO ALCANÇOU",
+        
+        
+        # Era zero e permaneceu zero
+        RES_2025 == 0 &
+          RES_2024 == 0 &
+          RES == 0 ~ "ALCANÇOU",
+        
+        
+        # Permaneceu igual, mas diferente de zero
+        RES_2025 != 0 &
+          RES_2024 != 0 &
+          RES == 0 ~ "NÃO ALCANÇOU",
+        
+        
+        # Redução menor que 1 ponto percentual
+        # Exemplo: -0.5, -0.7, -0.99
+        RES < 0 &
+          RES > -1 ~ "NÃO ALCANÇOU",
+        
+        
+        # Redução de pelo menos 1 ponto percentual
+        RES <= -1 ~ "ALCANÇOU",
+        
+        
+        # Aumento
+        RES > 0 ~ "NÃO ALCANÇOU",
+        
+        
+        TRUE ~ "NÃO ALCANÇOU"
+      )
+    )
+}
 
 calcular_metas <- function(indicador) {
   
@@ -283,7 +388,7 @@ remover_municipio <- function(
   col_cod <- names(dados)[
     str_detect(
       toupper(names(dados)),
-      "COD_MUN|CD_MUN|^COD$|^COD_IBGE$|Município"
+      "COD_MUN|CD_MUN|^COD$|^COD_IBGE$|Município|IBGE"
     )
   ]
   
@@ -338,7 +443,7 @@ Indicadores <- list()
 
 Indicadores$IND_01 <- calcular_indicador(
   Indicadores_Brutos$IND_01,
-  meta = 89.5,
+  meta = 89.47555,
   multiplicar_res = FALSE,
   coluna_mun = "NOME_MUN"
 )
@@ -346,7 +451,7 @@ Indicadores$IND_01 <- calcular_indicador(
 
 Indicadores$IND_02 <- calcular_indicador(
   Indicadores_Brutos$IND_02,
-  meta = 89.5,
+  meta = 89.47555,
   multiplicar_res = FALSE,
   coluna_mun = "NOME_MUN"
 )
@@ -354,7 +459,7 @@ Indicadores$IND_02 <- calcular_indicador(
 
 Indicadores$IND_03 <- calcular_indicador(
   Indicadores_Brutos$IND_03,
-  meta = 79.5,
+  meta = 79.47555,
   multiplicar_res = TRUE,
   coluna_mun = "cod_mun"
 ) %>%
@@ -368,7 +473,7 @@ Indicadores$IND_03 <- calcular_indicador(
 
 Indicadores$IND_04 <- calcular_indicador(
   Indicadores_Brutos$IND_04,
-  meta = 94.5,
+  meta = 94.47555,
   multiplicar_res = TRUE,
   coluna_mun = "Município"
 )
@@ -376,7 +481,7 @@ Indicadores$IND_04 <- calcular_indicador(
 
 Indicadores$IND_05 <- calcular_indicador(
   Indicadores_Brutos$IND_05,
-  meta = 74.5,
+  meta = 74.47555,
   multiplicar_res = TRUE,
   coluna_mun = "NOME_MUN"
 )
@@ -384,7 +489,7 @@ Indicadores$IND_05 <- calcular_indicador(
 
 Indicadores$IND_06 <- calcular_indicador(
   Indicadores_Brutos$IND_06,
-  meta = 79.5,
+  meta = 79.47555,
   multiplicar_res = FALSE,
   coluna_mun = "Município"
 )
@@ -392,7 +497,7 @@ Indicadores$IND_06 <- calcular_indicador(
 
 Indicadores$IND_07 <- calcular_indicador(
   Indicadores_Brutos$IND_07,
-  meta = 69.5,
+  meta = 69.47555,
   multiplicar_res = FALSE,
   coluna_mun = "COD_MUN"
 )
@@ -400,7 +505,7 @@ Indicadores$IND_07 <- calcular_indicador(
 
 Indicadores$IND_08 <- calcular_indicador(
   Indicadores_Brutos$IND_08,
-  meta = 74.5,
+  meta = 74.47555,
   multiplicar_res = FALSE,
   coluna_mun = "COD_MUN"
 )
@@ -408,31 +513,30 @@ Indicadores$IND_08 <- calcular_indicador(
 
 Indicadores$IND_09 <- calcular_indicador(
   Indicadores_Brutos$IND_09,
-  meta = 81.5,
+  meta = 81.47555,
   multiplicar_res = FALSE,
   coluna_mun = "COD_MUN"
 )
 
- 
+
 Indicadores$IND_10 <- calcular_indicador(
   Indicadores_Brutos$IND_10,
-  meta = 69.5,
+  meta = 69.47555,
   multiplicar_res = FALSE,
   coluna_mun = "COD_MUN"
 )
 
 
-Indicadores$IND_11 <- calcular_indicador(
+Indicadores$IND_11 <- calcular_indicador_11_12(
   Indicadores_Brutos$IND_11,
-  meta = 79.5,
-  multiplicar_res = FALSE,
-  coluna_mun = "COD_MUN"
+  coluna_mun = "COD_MUN",
+  multiplicar_res = FALSE
 )
 
 
 Indicadores$IND_13 <- calcular_indicador(
   Indicadores_Brutos$IND_13,
-  meta = 94.5,
+  meta = 94.47555,
   multiplicar_res = FALSE,
   coluna_mun = "COD_MUN"
 )
@@ -440,7 +544,7 @@ Indicadores$IND_13 <- calcular_indicador(
 
 Indicadores$IND_14 <- calcular_indicador(
   Indicadores_Brutos$IND_14,
-  meta = 94.5,
+  meta = 94.47555,
   multiplicar_res = FALSE,
   coluna_mun = "COD_MUN"
 ) |> 
@@ -448,52 +552,15 @@ Indicadores$IND_14 <- calcular_indicador(
 
 
 # =========================================================
-# 5. Indicador 12 - regra própria
+# 5. Indicador 12 - mesma regra do indicador 11
 # =========================================================
 
-message("===== IND_12 =====")
-
-
-Indicadores$IND_12 <- Indicadores_Brutos$IND_12 %>%
-  mutate(
-    
-    RES_2025_Era_NA =
-      is.na(
-        converter_numero(RES_2025)
-      ),
-    
-    across(
-      c(
-        RES_2024,
-        NUM_2025,
-        DEN_2025,
-        RES_2025
-      ),
-      ~ replace_na(
-        converter_numero(.),
-        0
-      )
-    ),
-    
-    DIFF =
-      RES_2025 - RES_2024,
-    
-    METAS = case_when(
-      RES_2025_Era_NA ~ "NÃO ALCANÇOU",
-      DEN_2025 == 0 ~ "ALCANÇOU",
-      DIFF > 0 ~ "NÃO ALCANÇOU",
-      DIFF == 0 & RES_2025 > 0 ~ "NÃO ALCANÇOU",
-      TRUE ~ "ALCANÇOU"
-    ),
-    
-    RES = RES_2025
-  ) %>%
-  select(
-    -RES_2025_Era_NA
-  ) %>%
-  drop_na(
-    NOME_MUN
-  )
+Indicadores$IND_12 <- calcular_indicador_11_12(
+  Indicadores_Brutos$IND_12,
+  coluna_mun = "COD_MUN",
+  multiplicar_res = TRUE
+) |> 
+  tidyr::drop_na(COD_MUN)
 
 
 # =========================================================
@@ -521,7 +588,6 @@ Descritivas <- bind_rows(
     }
   )
 )
-
 print(Descritivas)
 
 
@@ -612,3 +678,4 @@ saveWorkbook(
   "Resultado_Indicadores_Metas.xlsx",
   overwrite = TRUE
 )
+
