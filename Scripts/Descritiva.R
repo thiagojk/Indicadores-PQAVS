@@ -7,12 +7,12 @@ library(ggplot2)
 
 # Conta METAS para cada indicador e empilha em um único data frame
 df_plot <- bind_rows(
-  Indicadores$IND_12 %>%
+  Indicadores$IND_03 %>%
     filter(!is.na(METAS)) %>%
     count(METAS) %>%
     mutate(Indicador = "Indicador 12"),
   
-  Indicadores$IND_14 %>%
+  Indicadores$IND_04 %>%
     filter(!is.na(METAS)) %>%
     mutate(
       # Padroniza os rótulos do IND_14 para o mesmo padrão do IND_12
