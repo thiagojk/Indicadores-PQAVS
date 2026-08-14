@@ -2,7 +2,8 @@
 # DASHBOARD PQAVS 2025
 # app.R
 #
-# Usa o código de cálculo sem modificá-lo.
+# Usa o código de cálculo (Scripts/calculo_indicadores.R)
+# sem modificá-lo.
 # =========================================================
 
 library(shiny)
@@ -11,28 +12,24 @@ library(dplyr)
 library(plotly)
 library(DT)
 
-
 # =========================================================
-# 1. SOURCE DO CÓDIGO FINAL
+# 1. SOURCE DO CÓDIGO DE CÁLCULO
 # =========================================================
 
-# O app.R e o calculo_indicadores.R estão na pasta Scripts.
+# O app e o calculo_indicadores.R estão na pasta Scripts.
 # O código de cálculo usa caminhos "Dados/...", por isso o
 # diretório de trabalho é alterado para a raiz do projeto.
-
+# ATENÇÃO: setwd() muda o diretório de trabalho da sessão inteira,
+# não só deste script — mantenha o app.R sempre em Scripts/.
 setwd("..")
 
-source(
-  file.path("Scripts", "calculo_indicadores.R"),
-  encoding = "UTF-8"
-)
-
+source(file.path("Scripts", "calculo_indicadores.R"), encoding = "UTF-8")
 
 # =========================================================
-# 2. DADOS PARA O DASHBOARD
+# 2. DADOS AGREGADOS PARA O DASHBOARD
 # =========================================================
 
-Resumo_Indicadores <- Descritivas %>%
+Resumo_Indicadores <- Descritivas |>
   transmute(
     Indicador,
     Total_Municipios,
@@ -41,45 +38,18 @@ Resumo_Indicadores <- Descritivas %>%
   )
 
 # Ordena os indicadores numericamente: IND_01, IND_02, ..., IND_14
-ordem_indicadores <- order(
-  as.integer(
-    gsub(
-      "\\D",
-      "",
-      Resumo_Indicadores$Indicador
-    )
-  )
-)
-
 Resumo_Indicadores <- Resumo_Indicadores[
-  ordem_indicadores,
+  order(as.integer(gsub("\\D", "", Resumo_Indicadores$Indicador))),
 ]
-
 row.names(Resumo_Indicadores) <- NULL
 
-
-Total_Indicadores <- nrow(
-  Resumo_Indicadores
-)
-
-Total_Avaliacoes <- sum(
-  Resumo_Indicadores$Total_Municipios,
-  na.rm = TRUE
-)
-
-Total_Alcancou <- sum(
-  Resumo_Indicadores$Alcancou,
-  na.rm = TRUE
-)
-
-Total_Nao_Alcancou <- sum(
-  Resumo_Indicadores$Nao_Alcancou,
-  na.rm = TRUE
-)
-
+Total_Indicadores <- nrow(Resumo_Indicadores)
+Total_Avaliacoes <- sum(Resumo_Indicadores$Total_Municipios, na.rm = TRUE)
+Total_Alcancou <- sum(Resumo_Indicadores$Alcancou, na.rm = TRUE)
+Total_Nao_Alcancou <- sum(Resumo_Indicadores$Nao_Alcancou, na.rm = TRUE)
 
 # =========================================================
-# 3. TEMA
+# 3. TEMA, CSS E JAVASCRIPT
 # =========================================================
 
 tema_pqavs <- bs_theme(
@@ -90,13 +60,8 @@ tema_pqavs <- bs_theme(
   secondary = "#356B8C",
   success = "#1B7F5A",
   danger = "#B4543A",
-  base_font = font_collection(
-    "Segoe UI",
-    "Arial",
-    "sans-serif"
-  )
+  base_font = font_collection("Segoe UI", "Arial", "sans-serif")
 )
-
 
 css_pqavs <- "
 :root {
@@ -556,12 +521,6 @@ html {
 
 "
 
-
-
-# =========================================================
-# 3.1 JAVASCRIPT — MICROINTERAÇÕES E ACABAMENTO VISUAL
-# =========================================================
-
 js_pqavs <- "
 (function () {
   'use strict';
@@ -787,8 +746,6 @@ js_pqavs <- "
     updateScrollState();
   }
 
-
-
   function initPQAVS() {
     prepareReveal(document);
     setupCardGlow();
@@ -805,115 +762,128 @@ js_pqavs <- "
 })();
 "
 
-
 # =========================================================
-# 4. CARDS DOS INDICADORES
+# 4. FUNÇÕES AUXILIARES DE UI
 # =========================================================
 
-cards_indicadores <- lapply(
-  seq_len(
-    nrow(
-      Resumo_Indicadores
-    )
-  ),
-  function(i) {
+# Um card por indicador (linha de Resumo_Indicadores), com o gráfico
+# plugado depois em renderPlotly()
+card_indicador <- function(linha) {
+  id_grafico <- paste0("grafico_", tolower(linha$Indicador))
 
-    indicador <- Resumo_Indicadores$Indicador[i]
-    total <- Resumo_Indicadores$Total_Municipios[i]
-    alcancou <- Resumo_Indicadores$Alcancou[i]
-    nao_alcancou <- Resumo_Indicadores$Nao_Alcancou[i]
-
-    id_grafico <- paste0(
-      "grafico_",
-      tolower(indicador)
-    )
+  div(
+    class = "indicador-card",
 
     div(
-      class = "indicador-card",
+      class = "indicador-card-header",
+      span(class = "indicador-titulo", linha$Indicador),
+      span(class = "indicador-total", paste0("Total: ", linha$Total_Municipios))
+    ),
 
+    div(
+      class = "indicador-grafico",
+      plotlyOutput(id_grafico, height = "215px")
+    ),
+
+    div(
+      class = "indicador-footer",
       div(
-        class = "indicador-card-header",
-
-        span(
-          class = "indicador-titulo",
-          indicador
-        ),
-
-        span(
-          class = "indicador-total",
-          paste0(
-            "Total: ",
-            total
-          )
-        )
+        class = "resultado-badge alcancou",
+        tags$small("ALCANÇOU"),
+        tags$strong(linha$Alcancou)
       ),
-
       div(
-        class = "indicador-grafico",
-
-        plotlyOutput(
-          id_grafico,
-          height = "215px"
-        )
-      ),
-
-      div(
-        class = "indicador-footer",
-
-        div(
-          class = "resultado-badge alcancou",
-          tags$small(
-            "ALCANÇOU"
-          ),
-          tags$strong(
-            alcancou
-          )
-        ),
-
-        div(
-          class = "resultado-badge nao-alcancou",
-          tags$small(
-            "NÃO ALCANÇOU"
-          ),
-          tags$strong(
-            nao_alcancou
-          )
-        )
+        class = "resultado-badge nao-alcancou",
+        tags$small("NÃO ALCANÇOU"),
+        tags$strong(linha$Nao_Alcancou)
       )
     )
-  }
-)
+  )
+}
 
+# Gráfico de barras horizontal (Alcançou x Não alcançou) de uma linha
+# de Resumo_Indicadores
+grafico_barra_indicador <- function(linha) {
+  dados_grafico <- data.frame(
+    Situacao = c("NÃO ALCANÇOU", "ALCANÇOU"),
+    Quantidade = c(linha$Nao_Alcancou, linha$Alcancou),
+    stringsAsFactors = FALSE
+  )
+
+  dados_grafico$Rotulo <- paste0(
+    dados_grafico$Quantidade,
+    ifelse(dados_grafico$Quantidade == 1, " município", " municípios")
+  )
+
+  limite_x <- max(c(linha$Total_Municipios, dados_grafico$Quantidade), na.rm = TRUE)
+  if (!is.finite(limite_x) || limite_x <= 0) limite_x <- 1
+  limite_x <- limite_x * 1.22
+
+  plot_ly(
+    data = dados_grafico,
+    x = ~Quantidade,
+    y = ~Situacao,
+    type = "bar",
+    orientation = "h",
+    text = ~Rotulo,
+    textposition = "outside",
+    cliponaxis = FALSE,
+    hovertemplate = "<b>%{y}</b><br>%{x} municípios<extra></extra>",
+    marker = list(
+      color = c("#B4543A", "#1B7F5A"),
+      line = list(color = c("#9D4633", "#156C4D"), width = 1)
+    )
+  ) |>
+    layout(
+      showlegend = FALSE,
+      bargap = 0.46,
+      margin = list(l = 112, r = 54, t = 14, b = 35),
+      paper_bgcolor = "rgba(0,0,0,0)",
+      plot_bgcolor = "rgba(0,0,0,0)",
+      xaxis = list(
+        title = "",
+        range = c(0, limite_x),
+        zeroline = FALSE,
+        showline = FALSE,
+        showgrid = TRUE,
+        gridcolor = "#EDF1F4",
+        tickfont = list(color = "#64748B", size = 10),
+        rangemode = "tozero"
+      ),
+      yaxis = list(
+        title = "",
+        categoryorder = "array",
+        categoryarray = c("NÃO ALCANÇOU", "ALCANÇOU"),
+        tickfont = list(color = "#334155", size = 11),
+        fixedrange = TRUE
+      ),
+      font = list(family = "Segoe UI, Arial, sans-serif", color = "#334155")
+    ) |>
+    config(displayModeBar = FALSE, responsive = TRUE)
+}
+
+cards_indicadores <- lapply(
+  seq_len(nrow(Resumo_Indicadores)),
+  function(i) card_indicador(Resumo_Indicadores[i, ])
+)
 
 # =========================================================
 # 5. INTERFACE
 # =========================================================
 
 ui <- page_navbar(
-
   title = "PQAVS 2025",
   theme = tema_pqavs,
   fillable = FALSE,
 
   header = tags$head(
-    tags$style(
-      HTML(
-        css_pqavs
-      )
-    ),
-
-    tags$script(
-      HTML(
-        js_pqavs
-      )
-    )
+    tags$style(HTML(css_pqavs)),
+    tags$script(HTML(js_pqavs))
   ),
-
 
   # -------------------------------------------------------
   # ABA RESULTADOS
   # -------------------------------------------------------
-
   nav_panel(
     "Resultados",
 
@@ -922,99 +892,46 @@ ui <- page_navbar(
 
       div(
         class = "hero",
-
-        h2(
-          "Resultados dos Indicadores — PQAVS 2025"
-        ),
-
-        p(
-          paste(
-            "Resultado individual de cada indicador, com a quantidade",
-            "de municípios que alcançaram e não alcançaram a meta."
-          )
-        )
+        h2("Resultados dos Indicadores — PQAVS 2025"),
+        p(paste(
+          "Resultado individual de cada indicador, com a quantidade",
+          "de municípios que alcançaram e não alcançaram a meta."
+        ))
       ),
-
 
       layout_columns(
-        col_widths = c(
-          3,
-          3,
-          3,
-          3
-        ),
-
-        value_box(
-          title = "Indicadores avaliados",
-          value = Total_Indicadores,
-          theme = "primary"
-        ),
-
-        value_box(
-          title = "Avaliações municipais",
-          value = Total_Avaliacoes,
-          theme = "secondary"
-        ),
-
-        value_box(
-          title = "Alcançaram a meta",
-          value = Total_Alcancou,
-          theme = "success"
-        ),
-
-        value_box(
-          title = "Não alcançaram a meta",
-          value = Total_Nao_Alcancou,
-          theme = "danger"
-        )
+        col_widths = c(3, 3, 3, 3),
+        value_box(title = "Indicadores avaliados", value = Total_Indicadores, theme = "primary"),
+        value_box(title = "Avaliações municipais", value = Total_Avaliacoes, theme = "secondary"),
+        value_box(title = "Alcançaram a meta", value = Total_Alcancou, theme = "success"),
+        value_box(title = "Não alcançaram a meta", value = Total_Nao_Alcancou, theme = "danger")
       ),
-
 
       div(
         class = "section-heading",
-
-        h3(
-          "Resultado por indicador"
-        ),
-
-        p(
-          paste(
-            "Cada gráfico apresenta separadamente o número de municípios",
-            "em cada situação de cumprimento da meta."
-          )
-        )
+        h3("Resultado por indicador"),
+        p(paste(
+          "Cada gráfico apresenta separadamente o número de municípios",
+          "em cada situação de cumprimento da meta."
+        ))
       ),
 
-
-      div(
-        class = "indicadores-grid",
-        cards_indicadores
-      ),
-
+      div(class = "indicadores-grid", cards_indicadores),
 
       br(),
-
 
       card(
         class = "pqavs-card",
         full_screen = TRUE,
-
-        card_header(
-          "Resumo dos resultados por indicador"
-        ),
-
-        DTOutput(
-          "tabela_resultados"
-        )
+        card_header("Resumo dos resultados por indicador"),
+        DTOutput("tabela_resultados")
       )
     )
   ),
 
-
   # -------------------------------------------------------
   # ABA DADOS
   # -------------------------------------------------------
-
   nav_panel(
     "Dados",
 
@@ -1023,36 +940,22 @@ ui <- page_navbar(
 
       div(
         class = "hero",
-
-        h2(
-          "Dados detalhados"
-        ),
-
-        p(
-          paste(
-            "Tabela consolidada para conferência dos resultados",
-            "de todos os indicadores."
-          )
-        )
+        h2("Dados detalhados"),
+        p(paste(
+          "Tabela consolidada para conferência dos resultados",
+          "de todos os indicadores."
+        ))
       ),
-
 
       card(
         class = "pqavs-card",
         full_screen = TRUE,
-
-        card_header(
-          "Todos os indicadores"
-        ),
-
-        DTOutput(
-          "tabela_dados"
-        )
+        card_header("Todos os indicadores"),
+        DTOutput("tabela_dados")
       )
     )
   )
 )
-
 
 # =========================================================
 # 6. SERVIDOR
@@ -1060,191 +963,32 @@ ui <- page_navbar(
 
 server <- function(input, output, session) {
 
-
   # -------------------------------------------------------
   # GRÁFICOS INDIVIDUAIS DOS INDICADORES
   # -------------------------------------------------------
 
-  for (
-    i in seq_len(
-      nrow(
-        Resumo_Indicadores
-      )
-    )
-  ) {
+  lapply(seq_len(nrow(Resumo_Indicadores)), function(i) {
+    linha <- Resumo_Indicadores[i, ]
+    id_grafico <- paste0("grafico_", tolower(linha$Indicador))
 
-    local({
-
-      indice <- i
-
-      indicador <- Resumo_Indicadores$Indicador[indice]
-
-      id_grafico <- paste0(
-        "grafico_",
-        tolower(indicador)
-      )
-
-
-      output[[id_grafico]] <- renderPlotly({
-
-        linha <- Resumo_Indicadores[
-          indice,
-        ]
-
-        total <- linha$Total_Municipios
-
-        dados_grafico <- data.frame(
-          Situacao = c(
-            "NÃO ALCANÇOU",
-            "ALCANÇOU"
-          ),
-          Quantidade = c(
-            linha$Nao_Alcancou,
-            linha$Alcancou
-          ),
-          stringsAsFactors = FALSE
-        )
-
-        dados_grafico$Rotulo <- paste0(
-          dados_grafico$Quantidade,
-          ifelse(
-            dados_grafico$Quantidade == 1,
-            " município",
-            " municípios"
-          )
-        )
-
-        limite_x <- max(
-          c(
-            total,
-            dados_grafico$Quantidade
-          ),
-          na.rm = TRUE
-        )
-
-        if (
-          !is.finite(limite_x) ||
-          limite_x <= 0
-        ) {
-          limite_x <- 1
-        }
-
-        limite_x <- limite_x * 1.22
-
-
-        plot_ly(
-          data = dados_grafico,
-
-          x = ~Quantidade,
-          y = ~Situacao,
-
-          type = "bar",
-          orientation = "h",
-
-          text = ~Rotulo,
-          textposition = "outside",
-          cliponaxis = FALSE,
-
-          hovertemplate = paste0(
-            "<b>%{y}</b><br>",
-            "%{x} municípios",
-            "<extra></extra>"
-          ),
-
-          marker = list(
-            color = c(
-              "#B4543A",
-              "#1B7F5A"
-            ),
-            line = list(
-              color = c(
-                "#9D4633",
-                "#156C4D"
-              ),
-              width = 1
-            )
-          )
-        ) %>%
-
-          layout(
-            showlegend = FALSE,
-
-            bargap = 0.46,
-
-            margin = list(
-              l = 112,
-              r = 54,
-              t = 14,
-              b = 35
-            ),
-
-            paper_bgcolor = "rgba(0,0,0,0)",
-            plot_bgcolor = "rgba(0,0,0,0)",
-
-            xaxis = list(
-              title = "",
-              range = c(
-                0,
-                limite_x
-              ),
-              zeroline = FALSE,
-              showline = FALSE,
-              showgrid = TRUE,
-              gridcolor = "#EDF1F4",
-              tickfont = list(
-                color = "#64748B",
-                size = 10
-              ),
-              rangemode = "tozero"
-            ),
-
-            yaxis = list(
-              title = "",
-              categoryorder = "array",
-              categoryarray = c(
-                "NÃO ALCANÇOU",
-                "ALCANÇOU"
-              ),
-              tickfont = list(
-                color = "#334155",
-                size = 11
-              ),
-              fixedrange = TRUE
-            ),
-
-            font = list(
-              family = "Segoe UI, Arial, sans-serif",
-              color = "#334155"
-            )
-          ) %>%
-
-          config(
-            displayModeBar = FALSE,
-            responsive = TRUE
-          )
-      })
-    })
-  }
-
+    output[[id_grafico]] <- renderPlotly(grafico_barra_indicador(linha))
+  })
 
   # -------------------------------------------------------
   # TABELA-RESUMO
   # -------------------------------------------------------
 
   output$tabela_resultados <- renderDT({
-
-    tabela <- Resumo_Indicadores %>%
+    tabela <- Resumo_Indicadores |>
       rename(
         `Total de municípios` = Total_Municipios,
         `Alcançou` = Alcancou,
         `Não alcançou` = Nao_Alcancou
       )
 
-
     datatable(
       tabela,
       rownames = FALSE,
-
       options = list(
         pageLength = 14,
         ordering = FALSE,
@@ -1252,38 +996,30 @@ server <- function(input, output, session) {
         lengthChange = FALSE,
         info = FALSE,
         scrollX = TRUE,
-
-        language = list(
-          emptyTable = "Nenhum resultado disponível"
-        )
+        language = list(emptyTable = "Nenhum resultado disponível")
       )
     )
   })
-
 
   # -------------------------------------------------------
   # TABELA DE DADOS DETALHADOS
   # -------------------------------------------------------
 
   output$tabela_dados <- renderDT({
-
     datatable(
       Indicadores_Completo,
       rownames = FALSE,
-
       options = list(
         pageLength = 25,
         scrollX = TRUE,
         scrollY = "650px",
         autoWidth = TRUE,
-
         language = list(
           search = "Buscar:",
           lengthMenu = "Mostrar _MENU_ registros",
           info = "Mostrando _START_ a _END_ de _TOTAL_ registros",
           infoEmpty = "Nenhum registro disponível",
           zeroRecords = "Nenhum registro encontrado",
-
           paginate = list(
             first = "Primeiro",
             last = "Último",
@@ -1296,12 +1032,8 @@ server <- function(input, output, session) {
   })
 }
 
-
 # =========================================================
 # 7. APLICAÇÃO
 # =========================================================
 
-shinyApp(
-  ui = ui,
-  server = server
-)
+shinyApp(ui = ui, server = server)
