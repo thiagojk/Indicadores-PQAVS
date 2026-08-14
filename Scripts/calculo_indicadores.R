@@ -332,7 +332,7 @@ Indicadores <- Indicadores[c(
 # IND_03: municípios sem RES calculável contam como meta não alcançada
 Indicadores$IND_03 <- Indicadores$IND_03 |>
   mutate(METAS = replace_na(METAS, "NÃO ALCANÇOU"))
-
+ 
 # IND_14: descarta linhas sem UF (registros inválidos na planilha de origem)
 Indicadores$IND_14 <- Indicadores$IND_14 |>
   drop_na(UF)
