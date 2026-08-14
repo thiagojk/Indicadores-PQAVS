@@ -8,7 +8,7 @@ library(readxl)
 library(openxlsx)
 library(tidyr)
 library(stringr)
-
+library(tidyverse)
 # =========================================================
 # 1. Funções auxiliares
 # =========================================================
@@ -361,3 +361,272 @@ Indicadores_Completo <- Indicadores |>
   bind_rows(.id = "Indicador") |>
   relocate(Indicador, .before = 1)
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# =========================================================
+# 9. Salvamento em um único arquivo Excel
+# =========================================================
+
+dir.create("Resultados", showWarnings = FALSE)
+
+# Função para extrair UF, código, município e meta
+preparar_meta <- function(dados, nome) {
+  
+  nomes <- names(dados)
+  
+  col_uf <- grep(
+    "^UF$|SG_UF|SIGLA_UF",
+    nomes,
+    ignore.case = TRUE,
+    value = TRUE
+  )[1]
+  
+  col_cod <- grep(
+    "COD_MUN|CD_MUN|COD_IBGE|IBGE",
+    nomes,
+    ignore.case = TRUE,
+    value = TRUE
+  )[1]
+  
+  col_nome <- grep(
+    "NOME_MUN|NM_MUN",
+    nomes,
+    ignore.case = TRUE,
+    value = TRUE
+  )[1]
+  
+  # Quando a coluna se chama Município
+  if (is.na(col_cod)) {
+    
+    col_mun <- grep(
+      "^Município$|^Municipio$",
+      nomes,
+      ignore.case = TRUE,
+      value = TRUE
+    )[1]
+    
+    if (!is.na(col_mun)) {
+      
+      x <- as.character(dados[[col_mun]])
+      x_valido <- x[!is.na(x) & x != ""]
+      
+      if (
+        length(x_valido) > 0 &&
+        mean(grepl("^[0-9]+$", x_valido)) > 0.8
+      ) {
+        col_cod <- col_mun
+      } else {
+        col_nome <- col_mun
+      }
+    }
+  }
+  
+  # Para se algum indicador não tiver código
+  if (is.na(col_cod)) {
+    stop(
+      paste(
+        "Não encontrei a coluna de código do município em",
+        nome
+      )
+    )
+  }
+  
+  numero <- as.integer(
+    str_extract(nome, "\\d+")
+  )
+  
+  # Preparar dados
+  resultado <- tibble(
+    
+    UF = if (!is.na(col_uf)) {
+      as.character(dados[[col_uf]])
+    } else {
+      NA_character_
+    },
+    
+    COD_MUN = as.character(
+      dados[[col_cod]]
+    ),
+    
+    NOME_MUN = if (!is.na(col_nome)) {
+      as.character(dados[[col_nome]])
+    } else {
+      NA_character_
+    },
+    
+    # Recodificação das metas
+    META = case_when(
+      dados$METAS == "ALCANÇOU" ~ "SIM",
+      dados$METAS == "NÃO ALCANÇOU" ~ "NÃO",
+      TRUE ~ NA_character_
+    )
+    
+  ) |>
+    filter(
+      !is.na(COD_MUN),
+      COD_MUN != ""
+    ) |>
+    distinct(
+      COD_MUN,
+      .keep_all = TRUE
+    )
+  
+  # META -> META_IND_1, META_IND_2 etc.
+  names(resultado)[4] <- paste0(
+    "META_IND_",
+    numero
+  )
+  
+  resultado
+}
+
+
+# ---------------------------------------------------------
+# Conferir se existem os 14 indicadores
+# ---------------------------------------------------------
+
+esperados <- sprintf(
+  "IND_%02d",
+  1:14
+)
+
+faltantes <- setdiff(
+  esperados,
+  names(Indicadores)
+)
+
+if (length(faltantes) > 0) {
+  
+  stop(
+    paste(
+      "Indicadores faltantes:",
+      paste(
+        faltantes,
+        collapse = ", "
+      )
+    )
+  )
+}
+
+
+# ---------------------------------------------------------
+# Preparar as metas dos 14 indicadores
+# ---------------------------------------------------------
+
+Metas_Indicadores <- lapply(
+  esperados,
+  \(x) preparar_meta(
+    Indicadores[[x]],
+    x
+  )
+)
+
+names(Metas_Indicadores) <- esperados
+
+
+# ---------------------------------------------------------
+# Criar cadastro único de municípios
+# ---------------------------------------------------------
+
+Municipios <- bind_rows(
+  Metas_Indicadores
+) |>
+  select(
+    UF,
+    COD_MUN,
+    NOME_MUN
+  ) |>
+  group_by(COD_MUN) |>
+  summarise(
+    UF = first(na.omit(UF)),
+    NOME_MUN = first(na.omit(NOME_MUN)),
+    .groups = "drop"
+  )
+
+
+# ---------------------------------------------------------
+# Juntar META_IND_1 até META_IND_14
+# ---------------------------------------------------------
+
+Todos_Indicadores <- Reduce(
+  
+  \(x, y) full_join(
+    x,
+    y,
+    by = "COD_MUN"
+  ),
+  
+  lapply(
+    Metas_Indicadores,
+    \(x) select(
+      x,
+      COD_MUN,
+      starts_with("META_IND_")
+    )
+  )
+  
+) |>
+  left_join(
+    Municipios,
+    by = "COD_MUN"
+  ) |>
+  select(
+    UF,
+    COD_MUN,
+    NOME_MUN,
+    all_of(
+      paste0(
+        "META_IND_",
+        1:14
+      )
+    )
+  ) |>
+  arrange(
+    UF,
+    NOME_MUN
+  )
+
+
+# ---------------------------------------------------------
+# Criar um único Excel com todas as abas
+# ---------------------------------------------------------
+
+abas <- c(
+  Indicadores[esperados],
+  list(
+    TODOS_INDICADORES = Todos_Indicadores
+  )
+)
+
+
+write.xlsx(
+  abas,
+  file = "Resultados/Indicadores_PQAVS.xlsx",
+  overwrite = TRUE
+)
+
+
+# ---------------------------------------------------------
+# Conferência final
+# ---------------------------------------------------------
+
+message(
+  "Arquivo salvo com ",
+  length(abas),
+  " abas e ",
+  nrow(Todos_Indicadores),
+  " municípios."
+)
