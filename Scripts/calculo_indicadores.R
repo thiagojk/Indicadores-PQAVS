@@ -1,4 +1,3 @@
-
 # Pacotes -----------------------------------------------------------------
 
 
@@ -22,18 +21,18 @@ converter_numero <- function(x) {
   if (is.numeric(x)) {
     return(x)
   }
-
+  
   x_chr <- str_trim(as.character(x))
-
+  
   tem_virgula <- str_detect(x_chr, ",")
   tem_ponto <- str_detect(x_chr, "\\.")
-
+  
   x_limpo <- case_when(
     tem_virgula & tem_ponto ~ str_replace(str_remove_all(x_chr, "\\."), ",", "."),
     tem_virgula & !tem_ponto ~ str_replace(x_chr, ",", "."),
     TRUE ~ x_chr
   )
-
+  
   as.numeric(x_limpo)
 }
 
@@ -43,15 +42,15 @@ calcular_indicador <- function(indicador, meta, multiplicar_res = FALSE, coluna_
   if (!coluna_mun %in% names(indicador)) {
     stop(sprintf("A coluna de município '%s' não foi encontrada nos dados.", coluna_mun))
   }
-
+  
   nomes <- toupper(names(indicador))
   col_res <- names(indicador)[str_detect(nomes, "^RES($|_|[0-9])")]
   col_num <- names(indicador)[str_detect(nomes, "^NUM($|_|[0-9])")]
   col_den <- names(indicador)[str_detect(nomes, "^DEN($|_|[0-9])")]
-
+  
   if (length(col_res) >= 1) {
     col_res <- col_res[1]
-
+    
     indicador <- indicador |>
       mutate(
         RES = converter_numero(.data[[col_res]]),
@@ -61,7 +60,7 @@ calcular_indicador <- function(indicador, meta, multiplicar_res = FALSE, coluna_
   } else if (length(col_num) >= 1 && length(col_den) >= 1) {
     col_num <- col_num[1]
     col_den <- col_den[1]
-
+    
     indicador <- indicador |>
       mutate(
         !!col_num := replace_na(converter_numero(.data[[col_num]]), 0),
@@ -73,7 +72,7 @@ calcular_indicador <- function(indicador, meta, multiplicar_res = FALSE, coluna_
   } else {
     stop("Não foi possível identificar colunas de NUM/DEN ou RES neste indicador. Ajuste manualmente.")
   }
-
+  
   indicador |>
     mutate(
       METAS = case_when(
@@ -154,7 +153,7 @@ calcular_metas <- function(indicador) {
   if (!"METAS" %in% names(indicador)) {
     stop("A coluna 'METAS' não foi encontrada. Execute calcular_indicador() primeiro.")
   }
-
+  
   indicador |>
     count(METAS, name = "Quantidade") |>
     rename(Resultado_Meta = METAS) |>
@@ -165,15 +164,15 @@ descrever_indicador <- function(indicador, nome_indicador) {
   if (!"METAS" %in% names(indicador)) {
     stop("A coluna 'METAS' não foi encontrada. Execute calcular_indicador() primeiro.")
   }
-
+  
   total_avaliados <- nrow(indicador)
   n_alcancou <- sum(indicador$METAS == "ALCANÇOU", na.rm = TRUE)
   n_nao_alcancou <- sum(indicador$METAS == "NÃO ALCANÇOU", na.rm = TRUE)
   n_na <- sum(is.na(indicador$METAS))
-
+  
   res_valido <- suppressWarnings(as.numeric(indicador$RES))
   res_valido <- res_valido[!is.na(res_valido)]
-
+  
   tibble(
     Indicador = nome_indicador,
     Total_Municipios = total_avaliados,
@@ -196,7 +195,7 @@ remover_municipio <- function(dados, codigo, nome_base = NULL) {
   col_cod <- names(dados)[
     str_detect(toupper(names(dados)), "COD_MUN|CD_MUN|^COD$|^COD_IBGE$|Município|IBGE")
   ]
-
+  
   if (length(col_cod) == 0) {
     message(sprintf(
       "%s: nenhuma coluna de código de município encontrada.",
@@ -204,10 +203,10 @@ remover_municipio <- function(dados, codigo, nome_base = NULL) {
     ))
     return(dados)
   }
-
+  
   col_cod <- col_cod[1]
   cod_num <- suppressWarnings(as.numeric(dados[[col_cod]]))
-
+  
   dados |>
     filter(is.na(cod_num) | cod_num != codigo)
 }
@@ -216,7 +215,7 @@ adicionar_aba <- function(wb, nome, dados) {
   if (nome %in% names(wb)) {
     removeWorksheet(wb, nome)
   }
-
+  
   addWorksheet(wb, nome)
   writeData(wb, nome, dados)
 }
@@ -236,21 +235,23 @@ padronizar_tipos_mun <- function(dados) {
 # =========================================================
 
 arquivos <- list(
-  IND_01 = "Dados/IND_01.xlsx",
-  IND_02 = "Dados/IND_02.xlsx",
-  IND_03 = "Dados/IND_03.xlsx",
-  IND_04 = "Dados/IND_04_PQAVS_2025_JAN_DEZ_Final.xlsx",
-  IND_05 = "Dados/IND_05_PQA-VS 2025_Avaliação_Final_atualizada.xlsx",
-  IND_06 = "Dados/IND_06_PQAVS_Jan-Dez_2025_Indicador 6_Sinan_atualizado.xlsx",
-  IND_07 = "Dados/IND_07_PQA-VS_2025_Avaliacao_Final_Malaria.xlsx",
-  IND_08 = "Dados/IND_08_PQAVS_2025_COMPLETO 08_07_2026.xlsx",
-  IND_09 = "Dados/IND_09_PQA-VS 2025_Avaliação_Final_verificado.xlsx",
-  IND_10 = "Dados/IND_10_PQA-VS 2025_Avaliação_Final.xlsx",
-  IND_11 = "Dados/IND_11_PQA-VS 2025_Avaliação_Final_23.06.2026_Corrigido_26.06.2026.xlsx",
-  IND_12 = "Dados/IND_12_PQA-VS 2025_Avaliação_Final_atualizada.xlsx",
-  IND_13 = "Dados/IND_13_PQA-VS 2025_Avaliação_Final (corrigido).xlsx",
-  IND_14 = "Dados/IND14_PQAVS_2025 jan-dez Final Extracao 12-06-2026.xlsx"
+  IND_01 = "Dados/Indicadores Individuais/IND_01.xlsx",
+  IND_02 = "Dados/Indicadores Individuais/IND_02.xlsx",
+  IND_03 = "Dados/Indicadores Individuais/IND_03.xlsx",
+  IND_04 = "Dados/Indicadores Individuais/IND_04_PQAVS_2025_JAN_DEZ_Final.xlsx",
+  IND_05 = "Dados/Indicadores Individuais/IND_05_PQA-VS 2025_Avaliação_Final_atualizada.xlsx",
+  IND_06 = "Dados/Indicadores Individuais/IND_06_PQAVS_Jan-Dez_2025_Indicador 6_Sinan_atualizado.xlsx",
+  IND_07 = "Dados/Indicadores Individuais/IND_07_PQA-VS_2025_Avaliacao_Final_Malaria.xlsx",
+  IND_08 = "Dados/Indicadores Individuais/IND_08_PQAVS_2025_COMPLETO 08_07_2026.xlsx",
+  IND_09 = "Dados/Indicadores Individuais/IND_09_PQA-VS 2025_Avaliação_Final_verificado.xlsx",
+  IND_10 = "Dados/Indicadores Individuais/IND_10_PQA-VS 2025_Avaliação_Final.xlsx",
+  IND_11 = "Dados/Indicadores Individuais/IND_11_PQA-VS 2025_Avaliação_Final_23.06.2026_Corrigido_26.06.2026.xlsx",
+  IND_12 = "Dados/Indicadores Individuais/IND_12_PQA-VS 2025_Avaliação_Final_atualizada.xlsx",
+  IND_13 = "Dados/Indicadores Individuais/IND_13_PQA-VS 2025_Avaliação_Final (corrigido).xlsx",
+  IND_14 = "Dados/Indicadores Individuais/IND14_PQAVS_2025 jan-dez Final Extracao 12-06-2026.xlsx"
 )
+
+
 
 Indicadores_Brutos <- lapply(arquivos, ler_indicador)
 
@@ -332,7 +333,7 @@ Indicadores <- Indicadores[c(
 # IND_03: municípios sem RES calculável contam como meta não alcançada
 Indicadores$IND_03 <- Indicadores$IND_03 |>
   mutate(METAS = replace_na(METAS, "NÃO ALCANÇOU"))
- 
+
 # IND_14: descarta linhas sem UF (registros inválidos na planilha de origem)
 Indicadores$IND_14 <- Indicadores$IND_14 |>
   drop_na(UF)
@@ -360,11 +361,6 @@ Indicadores_Completo <- Indicadores |>
   lapply(padronizar_tipos_mun) |>
   bind_rows(.id = "Indicador") |>
   relocate(Indicador, .before = 1)
-
-
-
-
-
 
 
 
@@ -600,6 +596,33 @@ Todos_Indicadores <- Reduce(
   )
 
 
+
+
+# =========================================================
+# Adicionar apenas a população ao Todos_Indicadores
+# =========================================================
+
+PopMun <- read_excel(
+  "Dados/Pop/PopMun.xlsx"
+) |>
+  mutate(
+    COD_MUN = as.character(as.numeric(COD_MUN))
+  ) |>
+  select(
+    COD_MUN,
+    POP
+  )
+
+
+Todos_Indicadores <- Todos_Indicadores |>
+  mutate(
+    COD_MUN = as.character(as.numeric(COD_MUN))
+  ) |>
+  left_join(
+    PopMun,
+    by = "COD_MUN"
+  )
+
 # ---------------------------------------------------------
 # Criar um único Excel com todas as abas
 # ---------------------------------------------------------
@@ -630,3 +653,4 @@ message(
   nrow(Todos_Indicadores),
   " municípios."
 )
+
