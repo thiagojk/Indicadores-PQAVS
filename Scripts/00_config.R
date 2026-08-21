@@ -50,3 +50,4 @@ arquivo_populacao <- "Dados/Pop/Pop_IBGE_2025.xlsx"
 pasta_resultados <- "Resultados"
 pasta_dashboard <- file.path(pasta_resultados, "Dashboard")
 arquivo_excel_final <- file.path(pasta_resultados, "Indicadores_PQAVS.xlsx")
+

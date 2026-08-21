@@ -434,3 +434,4 @@ preparar_meta <- function(
 
   resultado
 }
+

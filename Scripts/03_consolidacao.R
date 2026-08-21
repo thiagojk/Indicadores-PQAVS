@@ -252,3 +252,12 @@ Dados_Completos <- Dados_Completos |>
   )
 
 
+  Dados_Completos <- Dados_Completos %>%
+  mutate(
+    Valor_a_Repassar = PQAVS_Incentivo * (PERCENTUAL_METAS / 100)
+  )
+  
+
+
+
+
