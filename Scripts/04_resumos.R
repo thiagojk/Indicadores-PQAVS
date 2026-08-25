@@ -29,6 +29,65 @@ Descritivas <- dplyr::bind_rows(
 )
 
 
+
+
+# Adicionar Variavel ------------------------------------------------------
+
+Dados_Completos <- Dados_Completos %>%
+  mutate(
+    PROP_MUN = case_when(
+      
+      # -------------------------
+      # PORTE 1
+      # -------------------------
+      PORTE == 1 & METAS_ALCANCADAS >= 5 ~ 90,
+      PORTE == 1 & METAS_ALCANCADAS == 4 ~ 70,
+      PORTE == 1 & METAS_ALCANCADAS == 3 ~ 50,
+      PORTE == 1 & METAS_ALCANCADAS == 2 ~ 30,
+      
+      # -------------------------
+      # PORTE 2
+      # -------------------------
+      PORTE == 2 & METAS_ALCANCADAS >= 6 ~ 90,
+      PORTE == 2 & METAS_ALCANCADAS == 5 ~ 70,
+      PORTE == 2 & METAS_ALCANCADAS == 4 ~ 50,
+      PORTE == 2 & METAS_ALCANCADAS %in% c(2, 3) ~ 30,
+      
+      # -------------------------
+      # PORTE 3
+      # -------------------------
+      PORTE == 3 & METAS_ALCANCADAS >= 7 ~ 90,
+      PORTE == 3 & METAS_ALCANCADAS == 6 ~ 70,
+      PORTE == 3 & METAS_ALCANCADAS %in% c(4, 5) ~ 50,
+      PORTE == 3 & METAS_ALCANCADAS %in% c(2, 3) ~ 30,
+      
+      # -------------------------
+      # PORTE 4
+      # -------------------------
+      PORTE == 4 & METAS_ALCANCADAS >= 8 ~ 90,
+      PORTE == 4 & METAS_ALCANCADAS %in% c(6, 7) ~ 70,
+      PORTE == 4 & METAS_ALCANCADAS == 5 ~ 50,
+      PORTE == 4 & METAS_ALCANCADAS %in% c(3, 4) ~ 30,
+      
+      # -------------------------
+      # PORTE 5
+      # -------------------------
+      PORTE == 5 & METAS_ALCANCADAS >= 9 ~ 90,
+      PORTE == 5 & METAS_ALCANCADAS %in% c(7, 8) ~ 70,
+      PORTE == 5 & METAS_ALCANCADAS %in% c(5, 6) ~ 50,
+      PORTE == 5 & METAS_ALCANCADAS %in% c(3, 4) ~ 30,
+      
+      # Demais casos = abaixo de 30%
+      TRUE ~ 0
+    )
+  )
+
+
+
+
+
+
+
 # ---------------------------------------------------------
 # 3. Resumo por Estado
 # ---------------------------------------------------------
@@ -36,101 +95,78 @@ Descritivas <- dplyr::bind_rows(
 Estados <- Dados_Completos |>
   dplyr::group_by(UF) |>
   dplyr::summarise(
-
+    
     # Total de municípios aderidos
     `Nº Mun Aderidos` = dplyr::n(),
-
+    
     # Municípios que alcançaram cada indicador
     dplyr::across(
       dplyr::starts_with("META_IND_"),
-      ~ sum(
-        .x == "SIM",
-        na.rm = TRUE
-      )
+      ~ sum(.x == "SIM", na.rm = TRUE)
     ),
-
-    # 90% ou mais
+    
+    # 90%
     Mun_90_N = sum(
-      PERCENTUAL_METAS >= 90,
+      PROP_MUN == 90,
       na.rm = TRUE
     ),
-
+    
     `Mun_90_%` = round(
-      Mun_90_N /
-        `Nº Mun Aderidos` *
-        100,
+      Mun_90_N / `Nº Mun Aderidos` * 100,
       2
     ),
-
-    # 70% a 89%
+    
+    # 70%
     Mun_70_N = sum(
-      PERCENTUAL_METAS >= 70 &
-        PERCENTUAL_METAS < 90,
+      PROP_MUN == 70,
       na.rm = TRUE
     ),
-
+    
     `Mun_70_%` = round(
-      (
-        Mun_90_N +
-          Mun_70_N
-      ) /
-        `Nº Mun Aderidos` *
-        100,
+      (Mun_90_N + Mun_70_N) /
+        `Nº Mun Aderidos` * 100,
       2
     ),
-
-    # 50% a 69%
+    
+    # 50%
     Mun_50_N = sum(
-      PERCENTUAL_METAS >= 50 &
-        PERCENTUAL_METAS < 70,
+      PROP_MUN == 50,
       na.rm = TRUE
     ),
-
+    
     `Mun_50_%` = round(
-      (
-        Mun_90_N +
-          Mun_70_N +
-          Mun_50_N
-      ) /
-        `Nº Mun Aderidos` *
-        100,
+      (Mun_90_N + Mun_70_N + Mun_50_N) /
+        `Nº Mun Aderidos` * 100,
       2
     ),
-
-    # 30% a 49%
+    
+    # 30%
     Mun_30_N = sum(
-      PERCENTUAL_METAS >= 30 &
-        PERCENTUAL_METAS < 50,
+      PROP_MUN == 30,
       na.rm = TRUE
     ),
-
+    
     `Mun_30_%` = round(
-      (
-        Mun_90_N +
-          Mun_70_N +
-          Mun_50_N +
-          Mun_30_N
-      ) /
-        `Nº Mun Aderidos` *
-        100,
+      (Mun_90_N + Mun_70_N + Mun_50_N + Mun_30_N) /
+        `Nº Mun Aderidos` * 100,
       2
     ),
-
-    # Menos de 30%
+    
+    # Abaixo de 30%
     Mun_menor30_N = sum(
-      PERCENTUAL_METAS < 30,
+      PROP_MUN < 30,
       na.rm = TRUE
     ),
-
+    
     `Mun_menor30_%` = round(
       Mun_menor30_N /
-        `Nº Mun Aderidos` *
-        100,
+        `Nº Mun Aderidos` * 100,
       2
     ),
-
+    
     .groups = "drop"
   )
+
 
 
 print(Descritivas)
@@ -185,3 +221,4 @@ Estados <- Estados %>%
     # Valor final a ser repassado
     Valor_a_Repassar = PQAVS_Incentivo * (PERCENTUAL_REPASSE / 100)
   )
+
