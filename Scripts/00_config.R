@@ -29,18 +29,18 @@ arquivos <- list(
 # Especificações dos indicadores com regra padrão
 especificacoes_padrao <- tibble::tribble(
   ~indicador, ~meta,    ~multiplicar_res, ~coluna_mun,
-  "IND_01",   89.47555, FALSE,            "NOME_MUN",
-  "IND_02",   89.47555, FALSE,            "NOME_MUN",
-  "IND_03",   79.47555, TRUE,             "cod_mun",
-  "IND_04",   94.47555, TRUE,             "Município",
-  "IND_05",   74.47555, TRUE,             "NOME_MUN",
-  "IND_06",   79.47555, FALSE,            "Município",
-  "IND_07",   69.47555, FALSE,            "COD_MUN",
-  "IND_08",   74.47555, FALSE,            "COD_MUN",
-  "IND_09",   81.47555, FALSE,            "COD_MUN",
-  "IND_10",   69.47555, FALSE,            "COD_MUN",
-  "IND_13",   94.47555, FALSE,            "COD_MUN",
-  "IND_14",   94.47555, FALSE,            "COD_MUN"
+  "IND_01",   89.5, FALSE,            "NOME_MUN",
+  "IND_02",   89.5, FALSE,            "NOME_MUN",
+  "IND_03",   79.5, TRUE,             "cod_mun",
+  "IND_04",   94.5, TRUE,             "Município",
+  "IND_05",   74.5, TRUE,             "NOME_MUN",
+  "IND_06",   79.5, FALSE,            "Município",
+  "IND_07",   69.5, FALSE,            "COD_MUN",
+  "IND_08",   74.5, FALSE,            "COD_MUN",
+  "IND_09",   81.5, FALSE,            "COD_MUN",
+  "IND_10",   69.5, FALSE,            "COD_MUN",
+  "IND_13",   94.5, FALSE,            "COD_MUN",
+  "IND_14",   94.5, FALSE,            "COD_MUN"
 )
 
 # Arquivo de população
