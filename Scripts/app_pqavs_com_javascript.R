@@ -1,4 +1,10 @@
 # =========================================================
+# APP.R LIMPO - PQAVS 2025
+# Removidos objetos, funções e outputs sem referência.
+# Mantida a estrutura visual original.
+# =========================================================
+
+# =========================================================
 # DASHBOARD PQAVS 2025
 # Dashboard/app.R
 #
@@ -15,6 +21,7 @@ library(plotly)
 library(DT)
 library(kableExtra)
 library(scales)
+library(ggplot2)
 
 
 # =========================================================
@@ -106,22 +113,6 @@ Resumo_Indicadores <- Descritivas |>
     )
   )
 
-Total_Indicadores <- nrow(Resumo_Indicadores)
-
-Total_Avaliacoes <- sum(
-  Resumo_Indicadores$Total_Municipios,
-  na.rm = TRUE
-)
-
-Total_Alcancou <- sum(
-  Resumo_Indicadores$Alcancou,
-  na.rm = TRUE
-)
-
-Total_Nao_Alcancou <- sum(
-  Resumo_Indicadores$Nao_Alcancou,
-  na.rm = TRUE
-)
 
 Total_Municipios <- nrow(Dados_Completos)
 
@@ -146,6 +137,29 @@ Total_Incentivo_Estados <- if (
 ) {
   sum(
     Estados$PQAVS_Incentivo,
+    na.rm = TRUE
+  )
+} else {
+  NA_real_
+}
+
+
+Total_Valor_Repassar_Municipios <- if (
+  "Valor_a_Repassar" %in% names(Dados_Completos)
+) {
+  sum(
+    Dados_Completos$Valor_a_Repassar,
+    na.rm = TRUE
+  )
+} else {
+  NA_real_
+}
+
+Total_Valor_Repassar_Estados <- if (
+  "Valor_a_Repassar" %in% names(Estados)
+) {
+  sum(
+    Estados$Valor_a_Repassar,
     na.rm = TRUE
   )
 } else {
@@ -226,18 +240,6 @@ kable_pqavs <- function(
 # =========================================================
 # 4. TABELAS PEQUENAS
 # =========================================================
-
-Tabela_Resumo_Indicadores <- Resumo_Indicadores |>
-  transmute(
-    Indicador,
-    `Total de municípios` = Total_Municipios,
-    `Alcançou` = Alcancou,
-    `Não alcançou` = Nao_Alcancou,
-    `% alcançou` = fmt_pct(
-      Percentual_Alcancou,
-      2
-    )
-  )
 
 Tabela_Descritivas <- Descritivas |>
   mutate(
@@ -547,6 +549,18 @@ table.dataTable tbody tr:hover {
   }
 }
 
+
+.grafico-nota {
+  margin-top: 8px;
+  padding: 10px 14px;
+  background: #F8FAFC;
+  border-left: 4px solid #176B57;
+  border-radius: 8px;
+  color: #64748B;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
 .grafico-card {
   background: white;
   border: 1px solid var(--borda);
@@ -582,169 +596,42 @@ table.dataTable tbody tr:hover {
 # 6. FUNÇÕES DOS GRÁFICOS
 # =========================================================
 
-grafico_indicadores <- function() {
-  
-  dados <- Resumo_Indicadores |>
-    select(
-      Indicador,
-      Alcancou,
-      Nao_Alcancou
-    ) |>
-    pivot_longer(
-      cols = c(
-        Alcancou,
-        Nao_Alcancou
-      ),
-      names_to = "Situacao",
-      values_to = "Quantidade"
-    ) |>
-    mutate(
-      Situacao = recode(
-        Situacao,
-        Alcancou = "Alcançou",
-        Nao_Alcancou = "Não alcançou"
-      )
-    )
-  
-  plot_ly(
-    dados,
-    x = ~Indicador,
-    y = ~Quantidade,
-    color = ~Situacao,
-    colors = c(
-      "#1B7F5A",
-      "#B4543A"
-    ),
-    type = "bar",
-    hovertemplate = paste0(
-      "<b>%{x}</b><br>",
-      "%{fullData.name}: %{y}",
-      "<extra></extra>"
-    )
-  ) |>
-    layout(
-      barmode = "group",
-      legend = list(
-        orientation = "h",
-        x = 0.30,
-        y = 1.08
-      ),
-      margin = list(
-        l = 55,
-        r = 20,
-        t = 55,
-        b = 55
-      ),
-      paper_bgcolor = "rgba(0,0,0,0)",
-      plot_bgcolor = "rgba(0,0,0,0)",
-      xaxis = list(
-        title = ""
-      ),
-      yaxis = list(
-        title = "Municípios",
-        gridcolor = "#EDF1F4"
-      )
-    ) |>
-    config(
-      displayModeBar = FALSE,
-      responsive = TRUE
-    )
-}
 
 
-grafico_faixas_municipios <- function() {
-  
-  dados <- Dados_Completos |>
-    mutate(
-      Faixa = case_when(
-        PERCENTUAL_METAS >= 90 ~ "90% ou mais",
-        PERCENTUAL_METAS >= 70 ~ "70% a 89%",
-        PERCENTUAL_METAS >= 50 ~ "50% a 69%",
-        PERCENTUAL_METAS >= 30 ~ "30% a 49%",
-        PERCENTUAL_METAS < 30 ~ "Menos de 30%",
-        TRUE ~ "Sem informação"
-      ),
-      Faixa = factor(
-        Faixa,
-        levels = c(
-          "90% ou mais",
-          "70% a 89%",
-          "50% a 69%",
-          "30% a 49%",
-          "Menos de 30%",
-          "Sem informação"
-        )
-      )
-    ) |>
-    count(
-      Faixa,
-      name = "Municipios"
-    )
-  
-  plot_ly(
-    dados,
-    labels = ~Faixa,
-    values = ~Municipios,
-    type = "pie",
-    hole = 0.55,
-    textinfo = "label+percent",
-    hovertemplate = paste0(
-      "<b>%{label}</b><br>",
-      "%{value} municípios",
-      "<extra></extra>"
-    )
-  ) |>
-    layout(
-      showlegend = FALSE,
-      margin = list(
-        l = 20,
-        r = 20,
-        t = 20,
-        b = 20
-      ),
-      paper_bgcolor = "rgba(0,0,0,0)"
-    ) |>
-    config(
-      displayModeBar = FALSE,
-      responsive = TRUE
-    )
-}
 
 
-grafico_estados_90 <- function() {
+
+
+
+
+
+
+
+
+# =========================================================
+# FUNÇÕES - VISÃO EXECUTIVA DOS ESTADOS
+# =========================================================
+
+grafico_ranking_estados <- function() {
   
-  if (
-    !"Mun_90_%" %in% names(Estados)
-  ) {
-    return(
-      plot_ly() |>
-        layout(
-          annotations = list(
-            list(
-              text = "Coluna Mun_90_% não disponível",
-              showarrow = FALSE
-            )
-          )
-        )
-    )
+  if (!"Mun_90_%" %in% names(Estados)) {
+    return(plot_ly())
   }
   
   dados <- Estados |>
-    arrange(
-      desc(`Mun_90_%`)
-    )
+    arrange(`Mun_90_%`)
+  
+  media_nacional <- mean(
+    dados$`Mun_90_%`,
+    na.rm = TRUE
+  )
   
   plot_ly(
     dados,
-    x = ~reorder(
-      UF,
-      `Mun_90_%`
-    ),
-    y = ~`Mun_90_%`,
+    x = ~`Mun_90_%`,
+    y = ~reorder(UF, `Mun_90_%`),
     type = "bar",
-    marker = list(
-      color = "#176B57"
-    ),
+    orientation = "h",
     text = ~paste0(
       formatC(
         `Mun_90_%`,
@@ -756,109 +643,184 @@ grafico_estados_90 <- function() {
     ),
     textposition = "outside",
     hovertemplate = paste0(
-      "<b>%{x}</b><br>",
-      "%{y:.1f}% dos municípios",
+      "<b>%{y}</b><br>",
+      "% municípios 90%+: %{x:.1f}%",
       "<extra></extra>"
     )
   ) |>
     layout(
-      margin = list(
-        l = 55,
-        r = 20,
-        t = 20,
-        b = 55
+      shapes = list(
+        list(
+          type = "line",
+          x0 = media_nacional,
+          x1 = media_nacional,
+          y0 = 0,
+          y1 = 1,
+          yref = "paper",
+          line = list(
+            dash = "dash"
+          )
+        )
       ),
-      paper_bgcolor = "rgba(0,0,0,0)",
-      plot_bgcolor = "rgba(0,0,0,0)",
       xaxis = list(
-        title = ""
+        title = "% de municípios com 90% ou mais"
       ),
       yaxis = list(
-        title = "% municípios com 90% ou mais",
-        gridcolor = "#EDF1F4"
+        title = ""
       )
     ) |>
     config(
-      displayModeBar = FALSE,
-      responsive = TRUE
+      displayModeBar = FALSE
     )
 }
 
 
-grafico_financeiro_uf <- function() {
+grafico_faixas_estados <- function() {
   
-  if (
-    !"PQAVS_Incentivo" %in% names(Dados_Completos)
-  ) {
-    return(
-      plot_ly() |>
-        layout(
-          annotations = list(
-            list(
-              text = "PQAVS_Incentivo não disponível",
-              showarrow = FALSE
-            )
-          )
-        )
-    )
+  colunas <- intersect(
+    c(
+      "Mun_90_%",
+      "Mun_70_%",
+      "Mun_50_%",
+      "Mun_30_%"
+    ),
+    names(Estados)
+  )
+  
+  if(length(colunas) == 0){
+    return(plot_ly())
   }
   
-  dados <- Dados_Completos |>
-    group_by(UF) |>
-    summarise(
-      Incentivo = sum(
-        PQAVS_Incentivo,
-        na.rm = TRUE
-      ),
-      .groups = "drop"
+  dados <- Estados |>
+    select(
+      UF,
+      all_of(colunas)
     ) |>
-    arrange(
-      Incentivo
+    pivot_longer(
+      cols = -UF,
+      names_to = "Faixa",
+      values_to = "Percentual"
+    ) |>
+    mutate(
+      Faixa = recode(
+        Faixa,
+        "Mun_90_%" = "90% ou mais",
+        "Mun_70_%" = "70% a 89%",
+        "Mun_50_%" = "50% a 69%",
+        "Mun_30_%" = "Abaixo de 50%"
+      )
     )
   
   plot_ly(
     dados,
-    x = ~Incentivo,
-    y = ~reorder(
-      UF,
-      Incentivo
-    ),
+    x = ~UF,
+    y = ~Percentual,
+    color = ~Faixa,
     type = "bar",
-    orientation = "h",
-    marker = list(
-      color = "#356B8C"
+    text = ~paste0(
+      formatC(
+        Percentual,
+        digits = 1,
+        format = "f",
+        decimal.mark = ","
+      ),
+      "%"
     ),
-    text = ~fmt_moeda(Incentivo),
-    textposition = "outside",
-    hovertemplate = paste0(
-      "<b>%{y}</b><br>",
-      "Incentivo: R$ %{x:,.2f}",
-      "<extra></extra>"
-    )
+    textposition = "inside"
   ) |>
     layout(
-      margin = list(
-        l = 55,
-        r = 120,
-        t = 20,
-        b = 45
-      ),
-      paper_bgcolor = "rgba(0,0,0,0)",
-      plot_bgcolor = "rgba(0,0,0,0)",
+      barmode = "stack",
       xaxis = list(
-        title = "Incentivo total",
-        gridcolor = "#EDF1F4"
+        title = ""
+      ),
+      yaxis = list(
+        title = "%"
+      )
+    ) |>
+    config(
+      displayModeBar = FALSE
+    )
+}
+
+
+grafico_repassar_estados <- function(){
+  
+  if(
+    !"Valor_a_Repassar" %in% names(Estados)
+  ){
+    return(plot_ly())
+  }
+  
+  dados <- Estados |>
+    arrange(
+      Valor_a_Repassar
+    )
+  
+  plot_ly(
+    dados,
+    x = ~Valor_a_Repassar,
+    y = ~reorder(UF, Valor_a_Repassar),
+    type = "bar",
+    orientation = "h",
+    text = ~fmt_moeda(Valor_a_Repassar),
+    textposition = "outside"
+  ) |>
+    layout(
+      xaxis = list(
+        title = "Valor a repassar"
       ),
       yaxis = list(
         title = ""
       )
     ) |>
     config(
-      displayModeBar = FALSE,
-      responsive = TRUE
+      displayModeBar = FALSE
     )
 }
 
+
+
+grafico_dispersao_estados <- function(){
+  
+  if(
+    !all(
+      c(
+        "Mun_90_%",
+        "Valor_a_Repassar"
+      ) %in% names(Estados)
+    )
+  ){
+    return(NULL)
+  }
+  
+  ggplot(
+    Estados,
+    aes(
+      x = `Mun_90_%`,
+      y = Valor_a_Repassar,
+      label = UF
+    )
+  ) +
+    geom_point(
+      size = 4
+    ) +
+    geom_text(
+      vjust = -0.8,
+      size = 3
+    ) +
+    scale_y_continuous(
+      labels = scales::label_currency(
+        prefix = "R$ ",
+        big.mark = ".",
+        decimal.mark = ","
+      )
+    ) +
+    labs(
+      x = "% municípios com 90%+",
+      y = "Valor a repassar"
+    ) +
+    theme_minimal()
+}
 
 
 # ---------------------------------------------------------
@@ -1096,47 +1058,6 @@ ui <- page_navbar(
         )
       ),
       
-      layout_columns(
-        col_widths = c(
-          3,
-          3,
-          3,
-          3
-        ),
-        
-        value_box(
-          title = "Indicadores avaliados",
-          value = fmt_num(
-            Total_Indicadores
-          ),
-          theme = "primary"
-        ),
-        
-        value_box(
-          title = "Avaliações municipais",
-          value = fmt_num(
-            Total_Avaliacoes
-          ),
-          theme = "secondary"
-        ),
-        
-        value_box(
-          title = "Alcançaram a meta",
-          value = fmt_num(
-            Total_Alcancou
-          ),
-          theme = "success"
-        ),
-        
-        value_box(
-          title = "Não alcançaram a meta",
-          value = fmt_num(
-            Total_Nao_Alcancou
-          ),
-          theme = "danger"
-        )
-      ),
-      
       div(
         class = "section-heading",
         h3(
@@ -1159,7 +1080,7 @@ ui <- page_navbar(
       div(
         class = "section-heading",
         h3(
-          "Resumo dos resultados por indicador"
+          "Estatísticas descritivas dos indicadores"
         )
       ),
       
@@ -1197,9 +1118,10 @@ ui <- page_navbar(
       
       layout_columns(
         col_widths = c(
-          4,
-          4,
-          4
+          3,
+          3,
+          3,
+          3
         ),
         
         value_box(
@@ -1232,6 +1154,23 @@ ui <- page_navbar(
             )
           },
           theme = "success"
+        ),
+        
+        
+        value_box(
+          title = "Valor a repassar",
+          value = if (
+            is.na(
+              Total_Valor_Repassar_Municipios
+            )
+          ) {
+            "Não disponível"
+          } else {
+            fmt_moeda(
+              Total_Valor_Repassar_Municipios
+            )
+          },
+          theme = "secondary"
         )
       ),
       
@@ -1323,12 +1262,12 @@ ui <- page_navbar(
       div(
         class = "hero",
         h2(
-          "Resultados por Estado"
+          "Painel Estadual PQAVS 2025"
         ),
         p(
           paste(
-            "Resumo estadual das metas,",
-            "faixas de desempenho e incentivo PQAVS."
+            "Visão executiva de desempenho,",
+            "distribuição das metas e recursos por Estado."
           )
         )
       ),
@@ -1340,26 +1279,22 @@ ui <- page_navbar(
         ),
         
         value_box(
-          title = "Unidades Federativas",
+          title = "Quantidade de UFs",
           value = fmt_num(
-            nrow(
-              Estados
-            )
+            nrow(Estados)
           ),
           theme = "primary"
         ),
         
         value_box(
-          title = "Incentivo estadual",
+          title = "Valor total a repassar",
           value = if (
-            is.na(
-              Total_Incentivo_Estados
-            )
+            is.na(Total_Valor_Repassar_Estados)
           ) {
             "Não disponível"
           } else {
             fmt_moeda(
-              Total_Incentivo_Estados
+              Total_Valor_Repassar_Estados
             )
           },
           theme = "success"
@@ -1367,14 +1302,87 @@ ui <- page_navbar(
       ),
       
       div(
-        class = "grafico-card",
-        plotlyOutput(
-          "grafico_estados_90_aba",
-          height = "420px"
+        class = "section-heading",
+        h3(
+          "Ranking de desempenho estadual"
         )
       ),
       
-      br(),
+      div(
+        class = "grafico-card",
+        plotlyOutput(
+          "grafico_ranking_estados",
+          height = "450px"
+        ),
+        div(
+          class = "grafico-nota",
+          "Este gráfico apresenta o ranking dos Estados conforme o percentual de municípios que alcançaram 90% ou mais das metas previstas. Os Estados são ordenados do menor para o maior desempenho e a linha tracejada representa a média nacional."
+        )
+      ),
+      
+      div(
+        class = "section-heading",
+        h3(
+          "Distribuição das faixas de desempenho"
+        )
+      ),
+      
+      div(
+        class = "grafico-card",
+        plotOutput(
+          "grafico_faixas_estados",
+          height = "450px"
+        ),
+        div(
+          class = "grafico-nota",
+          "Este gráfico mostra como os municípios de cada Estado estão distribuídos nas faixas de desempenho. A barra é composta pelas proporções de municípios com 90% ou mais, 70% a 89%, 50% a 69% e abaixo de 50% das metas alcançadas."
+        )
+      ),
+      
+      div(
+        class = "section-heading",
+        h3(
+          "Valor a repassar por Estado"
+        )
+      ),
+      
+      div(
+        class = "grafico-card",
+        plotlyOutput(
+          "grafico_repassar_estados",
+          height = "450px"
+        ),
+        div(
+          class = "grafico-nota",
+          "Este gráfico apresenta o ranking financeiro dos Estados considerando o Valor a Repassar. Ele permite comparar a distribuição dos recursos previstos entre as Unidades Federativas."
+        )
+      ),
+      
+      div(
+        class = "section-heading",
+        h3(
+          "Desempenho x Valor a repassar"
+        )
+      ),
+      
+      div(
+        class = "grafico-card",
+        plotOutput(
+          "grafico_dispersao_estados",
+          height = "450px"
+        ),
+        div(
+          class = "grafico-nota",
+          "Este gráfico analisa a relação entre desempenho e recurso financeiro. Cada ponto representa um Estado: quanto mais à direita, maior o percentual de municípios com alto desempenho; quanto mais acima, maior o valor a repassar."
+        )
+      ),
+      
+      div(
+        class = "section-heading",
+        h3(
+          "Tabela estadual"
+        )
+      ),
       
       div(
         class = "pqavs-table-wrap",
@@ -1383,266 +1391,8 @@ ui <- page_navbar(
         )
       )
     )
-  ),
-  
-  
-  # -------------------------------------------------------
-  # FINANCEIRO
-  # -------------------------------------------------------
-  
-  nav_panel(
-    "Financeiro",
-    
-    div(
-      class = "dashboard-container",
-      
-      div(
-        class = "hero",
-        h2(
-          "Incentivo financeiro PQAVS"
-        ),
-        p(
-          paste(
-            "Valores correspondentes a 20% do PFVS anual",
-            "para municípios e estados."
-          )
-        )
-      ),
-      
-      layout_columns(
-        col_widths = c(
-          6,
-          6
-        ),
-        
-        value_box(
-          title = "Total municipal",
-          value = if (
-            is.na(
-              Total_Incentivo_Municipios
-            )
-          ) {
-            "Não disponível"
-          } else {
-            fmt_moeda(
-              Total_Incentivo_Municipios
-            )
-          },
-          theme = "primary"
-        ),
-        
-        value_box(
-          title = "Total estadual",
-          value = if (
-            is.na(
-              Total_Incentivo_Estados
-            )
-          ) {
-            "Não disponível"
-          } else {
-            fmt_moeda(
-              Total_Incentivo_Estados
-            )
-          },
-          theme = "secondary"
-        )
-      ),
-      
-      div(
-        class = "section-heading",
-        h3(
-          "Incentivo municipal agregado por UF"
-        )
-      ),
-      
-      div(
-        class = "grafico-card",
-        plotlyOutput(
-          "grafico_financeiro",
-          height = "620px"
-        )
-      ),
-      
-      div(
-        class = "section-heading",
-        h3(
-          "Consulta financeira municipal"
-        ),
-        p(
-          "A tabela inicia com uma amostra de 30 municípios."
-        )
-      ),
-      
-      div(
-        class = "filtros-card",
-        
-        layout_columns(
-          col_widths = c(
-            4,
-            6,
-            2
-          ),
-          
-          selectInput(
-            "filtro_uf_fin",
-            "UF",
-            choices = c(
-              "Todas",
-              sort(
-                unique(
-                  Dados_Completos$UF
-                )
-              )
-            ),
-            selected = "Todas"
-          ),
-          
-          textInput(
-            "filtro_nome_fin",
-            "Município ou código",
-            placeholder = "Digite para pesquisar..."
-          ),
-          
-          actionButton(
-            "limpar_fin",
-            "Limpar",
-            class = "btn btn-outline-secondary",
-            style = "margin-top: 31px;"
-          )
-        )
-      ),
-      
-      card(
-        class = "pqavs-card",
-        full_screen = TRUE,
-        card_header(
-          "Incentivo por município"
-        ),
-        DTOutput(
-          "tabela_financeiro_municipios"
-        )
-      ),
-      
-      br(),
-      
-      div(
-        class = "section-heading",
-        h3(
-          "Incentivo por Estado"
-        )
-      ),
-      
-      div(
-        class = "pqavs-table-wrap",
-        uiOutput(
-          "tabela_financeiro_estados"
-        )
-      )
-    )
-  ),
-  
-  
-  # -------------------------------------------------------
-  # DESCRITIVAS
-  # -------------------------------------------------------
-  
-  nav_panel(
-    "Descritivas",
-    
-    div(
-      class = "dashboard-container",
-      
-      div(
-        class = "hero",
-        h2(
-          "Estatísticas descritivas"
-        ),
-        p(
-          "Resumo estatístico dos resultados de cada indicador."
-        )
-      ),
-      
-      div(
-        class = "pqavs-table-wrap",
-        uiOutput(
-          "tabela_descritivas"
-        )
-      )
-    )
-  ),
-  
-  
-  # -------------------------------------------------------
-  # DADOS DETALHADOS
-  # -------------------------------------------------------
-  
-  nav_panel(
-    "Dados",
-    
-    div(
-      class = "dashboard-container",
-      
-      div(
-        class = "hero",
-        h2(
-          "Dados detalhados"
-        ),
-        p(
-          paste(
-            "Para melhorar o desempenho,",
-            "a tabela mostra apenas um indicador por vez."
-          )
-        )
-      ),
-      
-      div(
-        class = "filtros-card",
-        
-        layout_columns(
-          col_widths = c(
-            4,
-            6,
-            2
-          ),
-          
-          selectInput(
-            "filtro_indicador",
-            "Indicador",
-            choices = names(
-              Indicadores
-            ),
-            selected = names(
-              Indicadores
-            )[1]
-          ),
-          
-          textInput(
-            "filtro_busca_dados",
-            "Município ou código",
-            placeholder = "Opcional"
-          ),
-          
-          actionButton(
-            "limpar_dados",
-            "Limpar",
-            class = "btn btn-outline-secondary",
-            style = "margin-top: 31px;"
-          )
-        )
-      ),
-      
-      card(
-        class = "pqavs-card",
-        full_screen = TRUE,
-        card_header(
-          "Base detalhada do indicador selecionado"
-        ),
-        DTOutput(
-          "tabela_dados"
-        )
-      )
-    )
   )
+  
 )
 
 
@@ -1697,24 +1447,16 @@ server <- function(
   # GRÁFICOS
   # -------------------------------------------------------
   
-  output$grafico_indicadores <- renderPlotly({
-    grafico_indicadores()
+  output$grafico_ranking_estados <- renderPlotly({
+    grafico_ranking_estados()
   })
   
-  output$grafico_faixas <- renderPlotly({
-    grafico_faixas_municipios()
+  output$grafico_faixas_estados <- renderPlotly({
+    grafico_faixas_estados()
   })
   
-  output$grafico_estados_90 <- renderPlotly({
-    grafico_estados_90()
-  })
-  
-  output$grafico_estados_90_aba <- renderPlotly({
-    grafico_estados_90()
-  })
-  
-  output$grafico_financeiro <- renderPlotly({
-    grafico_financeiro_uf()
+  output$grafico_repassar_estados <- renderPlotly({
+    grafico_repassar_estados()
   })
   
   
@@ -1727,8 +1469,9 @@ server <- function(
     HTML(
       as.character(
         kable_pqavs(
-          Tabela_Resumo_Indicadores,
-          altura = "500px"
+          Tabela_Descritivas,
+          altura = "620px",
+          font_size = 12
         )
       )
     )
@@ -1852,6 +1595,7 @@ server <- function(
             "PORTE",
             "METAS_ALCANCADAS",
             "PERCENTUAL_METAS",
+            "Valor_a_Repassar",
             "PQAVS_Incentivo"
           )
         )
@@ -1873,28 +1617,20 @@ server <- function(
     dados
   })
   
+  
+  
   output$tabela_municipios <- renderDT({
     
     tabela <- dados_municipios_filtrados()
     
-    if (
-      "POP" %in% names(
-        tabela
-      )
-    ) {
+    if ("POP" %in% names(tabela)) {
       tabela <- tabela |>
         mutate(
-          POP = fmt_num(
-            POP
-          )
+          POP = fmt_num(POP)
         )
     }
     
-    if (
-      "PERCENTUAL_METAS" %in% names(
-        tabela
-      )
-    ) {
+    if ("PERCENTUAL_METAS" %in% names(tabela)) {
       tabela <- tabela |>
         mutate(
           PERCENTUAL_METAS = fmt_pct(
@@ -1904,11 +1640,16 @@ server <- function(
         )
     }
     
-    if (
-      "PQAVS_Incentivo" %in% names(
-        tabela
-      )
-    ) {
+    if ("Valor_a_Repassar" %in% names(tabela)) {
+      tabela <- tabela |>
+        mutate(
+          Valor_a_Repassar = fmt_moeda(
+            Valor_a_Repassar
+          )
+        )
+    }
+    
+    if ("PQAVS_Incentivo" %in% names(tabela)) {
       tabela <- tabela |>
         mutate(
           PQAVS_Incentivo = fmt_moeda(
@@ -1944,7 +1685,9 @@ server <- function(
         )
       )
     )
+    
   }, server = TRUE)
+  
   
   
   # -------------------------------------------------------
@@ -1958,15 +1701,17 @@ server <- function(
         UF
       )
     
-    if (
-      "PQAVS_Incentivo" %in% names(
-        tabela
-      )
-    ) {
+    colunas_fin <- intersect(
+      c("PQAVS_Incentivo", "Valor_a_Repassar"),
+      names(tabela)
+    )
+    
+    if(length(colunas_fin) > 0){
       tabela <- tabela |>
         mutate(
-          PQAVS_Incentivo = fmt_moeda(
-            PQAVS_Incentivo
+          across(
+            all_of(colunas_fin),
+            fmt_moeda
           )
         )
     }
@@ -2013,355 +1758,8 @@ server <- function(
   })
   
   
-  # -------------------------------------------------------
-  # FINANCEIRO MUNICIPAL
-  # -------------------------------------------------------
   
-  observeEvent(
-    input$limpar_fin,
-    {
-      updateSelectInput(
-        session,
-        "filtro_uf_fin",
-        selected = "Todas"
-      )
-      
-      updateTextInput(
-        session,
-        "filtro_nome_fin",
-        value = ""
-      )
-    }
-  )
-  
-  financeiro_municipios <- reactive({
-    
-    req(
-      "PQAVS_Incentivo" %in% names(
-        Dados_Completos
-      )
-    )
-    
-    dados <- Dados_Completos |>
-      select(
-        UF,
-        COD_MUN,
-        NOME_MUN,
-        PQAVS_Incentivo
-      )
-    
-    tem_filtro <- FALSE
-    
-    if (
-      !is.null(
-        input$filtro_uf_fin
-      ) &&
-      input$filtro_uf_fin != "Todas"
-    ) {
-      dados <- dados |>
-        filter(
-          UF == input$filtro_uf_fin
-        )
-      
-      tem_filtro <- TRUE
-    }
-    
-    termo <- trimws(
-      input$filtro_nome_fin %||% ""
-    )
-    
-    if (
-      nzchar(
-        termo
-      )
-    ) {
-      
-      termo_min <- str_to_lower(
-        termo
-      )
-      
-      dados <- dados |>
-        filter(
-          str_detect(
-            str_to_lower(
-              coalesce(
-                NOME_MUN,
-                ""
-              )
-            ),
-            fixed(
-              termo_min
-            )
-          ) |
-            str_detect(
-              coalesce(
-                as.character(
-                  COD_MUN
-                ),
-                ""
-              ),
-              fixed(
-                termo
-              )
-            )
-        )
-      
-      tem_filtro <- TRUE
-    }
-    
-    dados <- dados |>
-      arrange(
-        UF,
-        NOME_MUN
-      )
-    
-    if (
-      !tem_filtro
-    ) {
-      dados <- dados |>
-        slice_head(
-          n = 30
-        )
-    }
-    
-    dados
-  })
-  
-  output$tabela_financeiro_municipios <- renderDT({
-    
-    if (
-      !"PQAVS_Incentivo" %in% names(
-        Dados_Completos
-      )
-    ) {
-      return(
-        datatable(
-          data.frame(
-            Mensagem = "PQAVS_Incentivo não disponível."
-          ),
-          rownames = FALSE,
-          options = list(
-            dom = "t"
-          )
-        )
-      )
-    }
-    
-    tabela <- financeiro_municipios() |>
-      mutate(
-        PQAVS_Incentivo = fmt_moeda(
-          PQAVS_Incentivo
-        )
-      )
-    
-    datatable(
-      tabela,
-      rownames = FALSE,
-      options = list(
-        pageLength = 15,
-        lengthMenu = c(
-          15,
-          30,
-          50
-        ),
-        scrollX = TRUE,
-        deferRender = TRUE,
-        language = list(
-          search = "Buscar:",
-          lengthMenu = "Mostrar _MENU_ registros",
-          zeroRecords = "Nenhum município encontrado",
-          paginate = list(
-            previous = "Anterior",
-            `next` = "Próximo"
-          )
-        )
-      )
-    )
-  }, server = TRUE)
-  
-  output$tabela_financeiro_estados <- renderUI({
-    
-    if (
-      !"PQAVS_Incentivo" %in% names(
-        Estados
-      )
-    ) {
-      return(
-        div(
-          class = "alert alert-warning",
-          "PQAVS_Incentivo não disponível em Estados."
-        )
-      )
-    }
-    
-    tabela <- Estados |>
-      select(
-        UF,
-        PQAVS_Incentivo
-      ) |>
-      arrange(
-        UF
-      ) |>
-      mutate(
-        PQAVS_Incentivo = fmt_moeda(
-          PQAVS_Incentivo
-        )
-      )
-    
-    HTML(
-      as.character(
-        kable_pqavs(
-          tabela,
-          altura = "520px"
-        )
-      )
-    )
-  })
-  
-  
-  # -------------------------------------------------------
-  # DESCRITIVAS
-  # -------------------------------------------------------
-  
-  output$tabela_descritivas <- renderUI({
-    
-    HTML(
-      as.character(
-        kable_pqavs(
-          Tabela_Descritivas,
-          altura = "620px",
-          font_size = 12
-        )
-      )
-    )
-  })
-  
-  
-  # -------------------------------------------------------
-  # DADOS DETALHADOS
-  # -------------------------------------------------------
-  
-  observeEvent(
-    input$limpar_dados,
-    {
-      updateSelectInput(
-        session,
-        "filtro_indicador",
-        selected = names(
-          Indicadores
-        )[1]
-      )
-      
-      updateTextInput(
-        session,
-        "filtro_busca_dados",
-        value = ""
-      )
-    }
-  )
-  
-  dados_detalhados_filtrados <- reactive({
-    
-    req(
-      input$filtro_indicador
-    )
-    
-    dados <- Indicadores_Completo |>
-      filter(
-        Indicador == input$filtro_indicador
-      )
-    
-    termo <- trimws(
-      input$filtro_busca_dados %||% ""
-    )
-    
-    if (
-      nzchar(
-        termo
-      )
-    ) {
-      
-      termo_min <- str_to_lower(
-        termo
-      )
-      
-      colunas_busca <- names(
-        dados
-      )[
-        str_detect(
-          names(
-            dados
-          ),
-          regex(
-            "COD_MUN|NOME_MUN|Munic[ií]pio",
-            ignore_case = TRUE
-          )
-        )
-      ]
-      
-      if (
-        length(
-          colunas_busca
-        ) > 0
-      ) {
-        dados <- dados |>
-          filter(
-            if_any(
-              all_of(
-                colunas_busca
-              ),
-              ~ str_detect(
-                str_to_lower(
-                  coalesce(
-                    as.character(
-                      .x
-                    ),
-                    ""
-                  )
-                ),
-                fixed(
-                  termo_min
-                )
-              )
-            )
-          )
-      }
-    }
-    
-    dados
-  })
-  
-  output$tabela_dados <- renderDT({
-    
-    datatable(
-      dados_detalhados_filtrados(),
-      rownames = FALSE,
-      filter = "top",
-      options = list(
-        pageLength = 15,
-        lengthMenu = c(
-          15,
-          30,
-          50
-        ),
-        scrollX = TRUE,
-        scrollY = "560px",
-        deferRender = TRUE,
-        autoWidth = TRUE,
-        searchDelay = 500,
-        language = list(
-          search = "Buscar:",
-          lengthMenu = "Mostrar _MENU_ registros",
-          info = "Mostrando _START_ a _END_ de _TOTAL_",
-          zeroRecords = "Nenhum registro encontrado",
-          paginate = list(
-            previous = "Anterior",
-            `next` = "Próximo"
-          )
-        )
-      )
-    )
-  }, server = TRUE)
+
 }
 
 
