@@ -720,14 +720,10 @@ grafico_ranking_estados <- function() {
 
 # ---------------------------------------------------------
 # Estados > Distribuição das faixas de desempenho
-# (barras empilhadas, ggplot2, com rótulos de valor)
-#
-# Consolida em uma única função o que antes existia
-# duplicado como grafico_estados_faixas() [ggplot2] e
-# grafico_faixas_estados() [plotly].
+# (barras empilhadas, plotly — interativo, com hover)
 # ---------------------------------------------------------
 
-grafico_faixas_estados_gg <- function() {
+grafico_faixas_estados_plotly <- function() {
   
   colunas <- intersect(
     c(
@@ -741,13 +737,12 @@ grafico_faixas_estados_gg <- function() {
   
   if (length(colunas) == 0) {
     return(
-      ggplot() +
-        theme_void() +
-        annotate(
-          "text",
-          x = 1,
-          y = 1,
-          label = "Colunas de faixas não disponíveis em Estados"
+      plot_ly() |>
+        layout(
+          annotations = list(list(
+            text = "Colunas de faixas não disponíveis em Estados",
+            showarrow = FALSE
+          ))
         )
     )
   }
@@ -791,21 +786,18 @@ grafico_faixas_estados_gg <- function() {
           as.character(Percentual)
         )
       ),
-      Faixa = recode(Faixa, !!!rotulos_faixa),
-      # Ordem de empilhamento: "90% ou mais" no topo da pilha
-      Faixa = factor(Faixa, levels = rev(niveis_faixa))
+      Faixa = recode(Faixa, !!!rotulos_faixa)
     ) |>
     filter(!is.na(Percentual))
   
   if (nrow(dados) == 0) {
     return(
-      ggplot() +
-        theme_void() +
-        annotate(
-          "text",
-          x = 1,
-          y = 1,
-          label = "Sem dados disponíveis"
+      plot_ly() |>
+        layout(
+          annotations = list(list(
+            text = "Sem dados disponíveis",
+            showarrow = FALSE
+          ))
         )
     )
   }
@@ -818,62 +810,83 @@ grafico_faixas_estados_gg <- function() {
   
   dados <- dados |>
     mutate(
-      UF = factor(UF, levels = ordem_uf)
-    )
-  
-  ggplot(
-    dados,
-    aes(
-      x = UF,
-      y = Percentual,
-      fill = Faixa
-    )
-  ) +
-    geom_col(
-      width = 0.72,
-      color = "white",
-      linewidth = 0.3
-    ) +
-    geom_text(
-      aes(
-        label = ifelse(
-          Percentual >= 4,
+      UF = factor(UF, levels = ordem_uf),
+      # rev(): "90% ou mais" empilhado no topo da barra
+      Faixa = factor(Faixa, levels = rev(niveis_faixa)),
+      Rotulo = ifelse(
+        Percentual >= 4,
+        paste0(
           formatC(
             Percentual,
             digits = 1,
             format = "f",
             decimal.mark = ","
           ),
-          ""
-        )
-      ),
-      position = position_stack(vjust = 0.5),
-      size = 3,
-      color = "white",
-      fontface = "bold"
-    ) +
-    scale_fill_manual(
-      values = cores_faixa,
-      breaks = niveis_faixa,
-      name = "Faixa de desempenho"
-    ) +
-    scale_y_continuous(
-      labels = function(x) paste0(x, "%"),
-      expand = expansion(mult = c(0, 0.03))
-    ) +
-    labs(
-      x = NULL,
-      y = "Percentual de municípios"
-    ) +
-    theme_minimal(base_size = 12) +
-    theme(
-      legend.position = "bottom",
-      panel.grid.major.x = element_blank(),
-      panel.grid.minor = element_blank(),
-      axis.text.x = element_text(
-        angle = 45,
-        hjust = 1
+          "%"
+        ),
+        ""
       )
+    )
+  
+  plot_ly(
+    dados,
+    x = ~UF,
+    y = ~Percentual,
+    color = ~Faixa,
+    colors = cores_faixa[levels(dados$Faixa)],
+    type = "bar",
+    text = ~Rotulo,
+    textposition = "inside",
+    textfont = list(
+      color = "white",
+      size = 11
+    ),
+    hovertemplate = paste0(
+      "<b>%{x}</b><br>",
+      "Faixa: %{fullData.name}<br>",
+      "Municípios: %{y:.1f}%",
+      "<extra></extra>"
+    )
+  ) |>
+    layout(
+      barmode = "stack",
+      legend = list(
+        orientation = "h",
+        x = 0.5,
+        xanchor = "center",
+        y = -0.28,
+        font = list(size = 13)
+      ),
+      margin = list(
+        l = 60,
+        r = 20,
+        t = 20,
+        b = 95
+      ),
+      paper_bgcolor = "rgba(0,0,0,0)",
+      plot_bgcolor = "rgba(0,0,0,0)",
+      font = list(
+        size = 14,
+        family = "Segoe UI, Arial, sans-serif"
+      ),
+      xaxis = list(
+        title = "",
+        tickangle = -45,
+        tickfont = list(size = 13)
+      ),
+      yaxis = list(
+        title = list(
+          text = "Percentual de municípios",
+          font = list(size = 14)
+        ),
+        ticksuffix = "%",
+        gridcolor = "#EDF1F4",
+        tickfont = list(size = 12)
+      )
+    ) |>
+    config(
+      displayModeBar = FALSE,
+      responsive = TRUE
     )
 }
 
@@ -1506,13 +1519,13 @@ ui <- page_navbar(
       
       div(
         class = "grafico-card",
-        plotOutput(
+        plotlyOutput(
           "grafico_faixas_estados",
           height = "450px"
         ),
         div(
           class = "grafico-nota",
-          "Este gráfico mostra como os municípios de cada Estado estão distribuídos nas faixas de desempenho. A barra é composta pelas proporções de municípios com 90% ou mais, 70% a 89%, 50% a 69% e abaixo de 50% das metas alcançadas."
+          "Este gráfico mostra como os municípios de cada Estado estão distribuídos nas faixas de desempenho. A barra é composta pelas proporções de municípios com 90% ou mais, 70% a 89%, 50% a 69% e abaixo de 50% das metas alcançadas. Passe o mouse sobre as barras para ver os detalhes."
         )
       ),
       
@@ -1572,6 +1585,7 @@ ui <- page_navbar(
   
 )
 
+
 # =========================================================
 # 8. SERVIDOR
 # =========================================================
@@ -1627,10 +1641,8 @@ server <- function(
     grafico_ranking_estados()
   })
   
-  # Corrigido: era renderPlotly ligado a um plotOutput na UI.
-  # Agora usa a função ggplot2 consolidada + renderPlot.
-  output$grafico_faixas_estados <- renderPlot({
-    grafico_faixas_estados_gg()
+  output$grafico_faixas_estados <- renderPlotly({
+    grafico_faixas_estados_plotly()
   })
   
   output$grafico_repassar_estados <- renderPlotly({
